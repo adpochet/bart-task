@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>BART minimale</title>
+
+  <script src="https://unpkg.com/jspsych@8.2.3"></script>
+  <link href="https://unpkg.com/jspsych@8.2.3/css/jspsych.css" rel="stylesheet" type="text/css" />
+
+  <script src="https://unpkg.com/@jspsych/plugin-instructions@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-button-response@2.1.0"></script>
+  <script src="https://unpkg.com/@jspsych-contrib/plugin-bart"></script>
+
+  <style>
+    body { background: #f8f8f8; }
+    .jspsych-content { max-width: 900px; }
+  </style>
+</head>
+<body></body>
+
+<script>
+  const jsPsych = initJsPsych({});
+  const timeline = [];
+
+  const instructions = {
+    type: jsPsychInstructions,
+    pages: [
+      `
+      <h2>Tâche des ballons</h2>
+      <p>Dans cette tâche, tu verras plusieurs ballons.</p>
+      <p>À chaque ballon, tu peux :</p>
+      <ul style="text-align:left; display:inline-block;">
+        <li><strong>Gonfler</strong> : gonfler le ballon et gagner des points</li>
+        <li><strong>Encaisser</strong> : sécuriser les points du ballon actuel</li>
+      </ul>
+      <p>Attention : si le ballon éclate, tu perds les points de ce ballon.</p>
+      <p>Essaie de gagner le plus de points possible.</p>
+      `,
+      `
+      <p>Le risque d’explosion n’est pas visible.</p>
+      <p>Chaque ballon peut éclater à un moment différent.</p>
+      <p>Clique sur <strong>Next</strong> pour commencer.</p>
+      `
+    ],
+    show_clickable_nav: true,
+    button_label_next: "Next",
+    button_label_previous: "Back"
+  };
+
+  timeline.push(instructions);
+
+  const N_BALLOONS = 10;
+  let totalPoints = 0;
+
+  function generatePopThreshold() {
+    return Math.floor(Math.random() * 64) + 1;
+  }
+
+  for (let i = 0; i < N_BALLOONS; i++) {
+    timeline.push({
+      type: jsPsychBart,
+      pop_threshold: generatePopThreshold(),
+      starting_total_points: function() {
+  return totalPoints;
+},
+      points_per_pump: 1,
+      balloon_color: "#e74c3c",
+      balloon_starting_size: 0.4,
+      balloon_size_increment: 0.05,
+      show_balloon_value: true,
+      show_total_points: true,
+      pump_button_label: "Gonfler",
+      collect_button_label: "Encaisser",
+      data: {
+        task: "bart",
+        balloon_number: i + 1
+      },
+      on_finish: function(data) {
+        totalPoints = data.total_points;
+      }
+    });
+  }
+
+  const end_screen = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: function() {
+
+    // récupérer les données
+    const data = jsPsych.data.get().filter({task: "bart"}).values();
+
+    let totalPumps = 0;
+    let explosions = 0;
+
+    data.forEach(d => {
+      totalPumps += d.pumps;
+      if (d.popped) explosions++;
+    });
+
+    // stocker l'URL pour après le clic
+    end_screen.redirectURL =
+      "https://TON-LIEN-QUALTRICS" +
+      "?pumps=" + totalPumps +
+      "&explosions=" + explosions +
+      "&score=" + totalPoints;
+
+    return "<h2>Fin de la tâche</h2>" +
+           "<p>Score final : <strong>" + totalPoints + "</strong></p>" +
+           "<p>Clique pour continuer</p>";
+  },
+
+  choices: ["Continuer"],
+
+  on_finish: function() {
+    window.location.href = end_screen.redirectURL;
+  }
+};
+
+timeline.push(end_screen);
+
+  jsPsych.run(timeline);
+</script>
+</html>
