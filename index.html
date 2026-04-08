@@ -81,37 +81,53 @@
     });
   }
 
-  const end_screen = {
+const end_screen = {
   type: jsPsychHtmlButtonResponse,
   stimulus: function() {
-
-    // récupérer les données
-    const data = jsPsych.data.get().filter({task: "bart"}).values();
+    const data = jsPsych.data.get().filter({ task: "bart" }).values();
 
     let totalPumps = 0;
     let explosions = 0;
+    let pumpsNonExploses = 0;
+    let nbBallonsNonExploses = 0;
 
     data.forEach(d => {
       totalPumps += d.pumps;
-      if (d.popped) explosions++;
+
+      if (d.popped) {
+        explosions++;
+      } else {
+        pumpsNonExploses += d.pumps;
+        nbBallonsNonExploses++;
+      }
     });
 
-    // stocker l'URL pour après le clic
-    end_screen.redirectURL =
-      "https://TON-LIEN-QUALTRICS" +
-      "?pumps=" + totalPumps +
-      "&explosions=" + explosions +
-      "&score=" + totalPoints;
+    const adjustedAverage = nbBallonsNonExploses > 0
+      ? pumpsNonExploses / nbBallonsNonExploses
+      : 0;
+
+    const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+      ? "mobile"
+      : "ordinateur";
+
+    end_screen.results = {
+      type: "bartComplete",
+      pumps: totalPumps,
+      explosions: explosions,
+      score: totalPoints,
+      adjustedAverage: adjustedAverage,
+      nonExplodedCount: nbBallonsNonExploses,
+      device: isMobile,
+      screenwidth: window.innerWidth
+    };
 
     return "<h2>Fin de la tâche</h2>" +
            "<p>Score final : <strong>" + totalPoints + "</strong></p>" +
-           "<p>Clique pour continuer</p>";
+           "<p>Clique sur le bouton ci-dessous pour continuer.</p>";
   },
-
   choices: ["Continuer"],
-
   on_finish: function() {
-    window.top.location.href = end_screen.redirectURL;
+    window.parent.postMessage(end_screen.results, "*");
   }
 };
 
